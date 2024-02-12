@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - apt-get update
+      - apt-get install -y awscli
+      - apt-get install wget apt-transport-https gnupg
+      - wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | apt-key add -
+      - echo deb https://aquasecurity.github.io/trivy-repo/deb bionic main | tee -a /etc/apt/sources.list.d/trivy.list
+      - apt-get update
+      - apt-get install -y trivy
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 175662053988.dkr.ecr.us-east-1.amazonaws.com
+      - REPOSITORY_URI=175662053988.dkr.ecr.us-east-1.amazonaws.com/test
+  build:
+    commands:
+      - docker build -t $REPOSITORY_URI:success .
+  post_build:
+    commands:
+      - trivy image --exit-code 1 --severity HIGH,CRITICAL $REPOSITORY_URI:success
+      - docker push $REPOSITORY_URI:success
